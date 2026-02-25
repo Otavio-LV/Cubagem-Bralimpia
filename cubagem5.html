@@ -85,7 +85,6 @@ const produtos = {
 
 // 🔹 CAIXAS (cm)
 const caixas = [
-    { nome: "Grande", comprimento: 110, largura: 60, altura: 60 },
     { nome: "Pequena", comprimento: 60, largura: 40, altura: 30 },
     { nome: "Média", comprimento: 110, largura: 40, altura: 40 },
     { nome: "Grande", comprimento: 110, largura: 60, altura: 60 }
@@ -150,6 +149,7 @@ function tentarEncaixar(produto, caixa) {
 
     return false;
 }
+
 function calcular() {
 
     const linhas = document.querySelectorAll(".produto-linha");
@@ -159,7 +159,6 @@ function calcular() {
         return;
     }
 
-    // 🔹 Criar lista expandida de unidades
     let listaUnidades = [];
 
     linhas.forEach(linha => {
@@ -177,7 +176,6 @@ function calcular() {
         }
     });
 
-    // 🔹 Ordenar do maior volume para o menor
     listaUnidades.sort((a, b) => {
         const volA = a.comprimento * a.largura * a.altura;
         const volB = b.comprimento * b.largura * b.altura;
@@ -257,6 +255,7 @@ if (melhorModelo) {
         }
         resumoTipos[c.nome]++;
 
+        volumeMercadorias += c.volumeUsado;
         volumeTotalCaixas += c.volumeTotal;
     });
 
