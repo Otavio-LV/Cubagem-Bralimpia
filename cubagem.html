@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Simulador Profissional de Cubagem</title>
+
+<style>
+#LOGO{
+    height: 15vh;
+    width: 35vw ;
+}
+header{
+    height: 15vh;
+    background-color: rgb(0,116,194);
+    margin-bottom:50px;
+    }
+body{
+    font-family: Arial;
+    background:#f2f2f2;
+    padding:0PX;
+    margin:0px;
+}
+
+.container{
+    max-width:500px;
+    margin:auto;
+    background:white;
+    padding:20px;
+    border-radius:10px;
+}
+
+h2{
+    text-align:center;
+}
+
+input{
+    width:100%;
+    padding:8px;
+    margin:5px 0;
+}
+
+button{
+    width:100%;
+    padding:10px;
+    margin-top:10px;
+    background:#011936;
+    color:white;
+    border:none;
+    border-radius:5px;
+}
+
+table{
+    width:100%;
+    margin-top:15px;
+    border-collapse:collapse;
+}
+
+th,td{
+    border:1px solid #ccc;
+    padding:6px;
+    text-align:center;
+}
+
+.melhor{
+    background:#d4edda;
+}
+</style>
+</head>
+
+<body>
+<header>
+    <img id="LOGO" src="imagens/logo/logo2.png" alt="x">
+</header>
+<div class="container">
+
+<h2>Simulador de Cubagem </h2>
+
+<h4>Produto</h4>
+<input type="number" id="compProd" placeholder="Comprimento">
+<input type="number" id="largProd" placeholder="Largura">
+<input type="number" id="altProd" placeholder="Altura">
+<input type="number" id="qtdProd" placeholder="Quantidade">
+
+<button onclick="calcular()">Calcular</button>
+
+<table id="tabela">
+<thead>
+<tr>
+<th>Caixa</th>
+<th>Cabem</th>
+<th>Aproveitamento</th>
+</tr>
+</thead>
+<tbody>
+</tbody>
+</table>
+
+</div>
+
+<script>
+
+let caixas = [
+    {nome:"Média", comp:110, larg:30, alt:30},
+    {nome:"Pequena", comp:90, larg:40, alt:40},
+    {nome:"Gigante", comp:110, larg:50, alt:50}
+];
+
+function calcular(){
+
+let compProd = parseFloat(document.getElementById("compProd").value);
+let largProd = parseFloat(document.getElementById("largProd").value);
+let altProd = parseFloat(document.getElementById("altProd").value);
+let qtdProd = parseFloat(document.getElementById("qtdProd").value);
+
+let volumeTotalProd = compProd * largProd * altProd * qtdProd;
+
+let tbody = document.querySelector("#tabela tbody");
+tbody.innerHTML = "";
+
+let melhorAproveitamento = 0;
+let melhorIndex = -1;
+
+caixas.forEach((caixa,index)=>{
+
+    let qtdCabem = Math.floor(caixa.comp/compProd) *
+                   Math.floor(caixa.larg/largProd) *
+                   Math.floor(caixa.alt/altProd);
+
+    let aproveitamento = 0;
+
+    if(qtdCabem >= qtdProd){
+        let volumeCaixa = caixa.comp * caixa.larg * caixa.alt;
+        aproveitamento = volumeTotalProd / volumeCaixa;
+
+        if(aproveitamento > melhorAproveitamento){
+            melhorAproveitamento = aproveitamento;
+            melhorIndex = index;
+        }
+    }
+
+    let row = document.createElement("tr");
+
+    row.innerHTML = `
+        <td>${caixa.nome}</td>
+        <td>${qtdCabem}</td>
+        <td>${(aproveitamento*100).toFixed(2)}%</td>
+    `;
+
+    if(index === melhorIndex){
+        row.classList.add("melhor");
+    }
+
+    tbody.appendChild(row);
+});
+
+}
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Sistema de Cubagem Profissional</title>
+<style>
+body {
+    font-family: Arial;
+    background: #f4f6f8;
+    padding: 30px;
+}
+
+.container {
+    max-width: 800px;
+    margin: auto;
+    background: white;
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0,0,0,0.1);
+}
+
+h2 {
+    text-align: center;
+}
+
+.produto-linha {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+select, input {
+    padding: 8px;
+    font-size: 14px;
+}
+
+button {
+    padding: 10px;
+    font-size: 15px;
+    cursor: pointer;
+    border: none;
+    border-radius: 5px;
+}
+
+.add-btn {
+    background: #28a745;
+    color: white;
+}
+
+.calc-btn {
+    background: #007bff;
+    color: white;
+    width: 100%;
+    margin-top: 15px;
+}
+
+.resultado {
+    margin-top: 20px;
+    background: #e9f5ff;
+    padding: 15px;
+    border-radius: 8px;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+<h2>Sistema de Cubagem Profissional</h2>
+
+<div id="listaProdutos"></div>
+
+<button class="add-btn" onclick="adicionarProduto()">+ Adicionar Produto</button>
+
+<button class="calc-btn" onclick="calcular()">Calcular</button>
+
+<div class="resultado" id="resultado"></div>
+</div>
+
+<script>
+
+// 🔹 PRODUTOS (cm)
+const produtos = {
+    "Painel 100x2x2": { comprimento: 100, largura: 2, altura: 2 },
+    "Barra 80x5x5": { comprimento: 80, largura: 5, altura: 5 },
+    "Placa 60x40x3": { comprimento: 60, largura: 40, altura: 3 }
+};
+
+// 🔹 CAIXAS (cm)
+const caixas = [
+    { nome: "Grande", comprimento: 110, largura: 60, altura: 60 },
+    { nome: "Média", comprimento: 110, largura: 40, altura: 40 },
+    { nome: "Pequena", comprimento: 60, largura: 30, altura: 30 }
+];
+
+// 🔹 ADICIONAR PRODUTO
+function adicionarProduto() {
+    const div = document.createElement("div");
+    div.className = "produto-linha";
+
+    const select = document.createElement("select");
+    for (let nome in produtos) {
+        let option = document.createElement("option");
+        option.value = nome;
+        option.textContent = nome;
+        select.appendChild(option);
+    }
+
+    const input = document.createElement("input");
+    input.type = "number";
+    input.min = "1";
+    input.value = "1";
+    input.style.width = "80px";
+
+    div.appendChild(select);
+    div.appendChild(input);
+
+    document.getElementById("listaProdutos").appendChild(div);
+}
+
+// 🔹 CALCULAR
+function calcular() {
+
+    const linhas = document.querySelectorAll(".produto-linha");
+
+    if (linhas.length === 0) {
+        alert("Adicione pelo menos um produto.");
+        return;
+    }
+
+    // 🔹 Criar lista expandida de unidades
+    let listaUnidades = [];
+
+    linhas.forEach(linha => {
+        const nome = linha.children[0].value;
+        const quantidade = parseInt(linha.children[1].value);
+        const produto = produtos[nome];
+
+        for (let i = 0; i < quantidade; i++) {
+            listaUnidades.push({
+                nome,
+                comprimento: produto.comprimento,
+                largura: produto.largura,
+                altura: produto.altura
+            });
+        }
+    });
+
+    // 🔹 Ordenar do maior volume para o menor
+    listaUnidades.sort((a, b) => {
+        const volA = a.comprimento * a.largura * a.altura;
+        const volB = b.comprimento * b.largura * b.altura;
+        return volB - volA;
+    });
+
+    let caixasAbertas = [];
+
+    listaUnidades.forEach(produto => {
+
+        let encaixado = false;
+
+        // 🔹 Tentar encaixar em caixas já abertas
+        for (let caixa of caixasAbertas) {
+
+            if (tentarEncaixar(produto, caixa)) {
+                encaixado = true;
+                break;
+            }
+        }
+
+        // 🔹 Se não coube, abrir nova caixa (maior que comporta)
+        if (!encaixado) {
+
+            for (let modelo of caixas) {
+
+                if (produtoCabe(produto, modelo)) {
+
+                    let novaCaixa = {
+                        nome: modelo.nome,
+                        comprimento: modelo.comprimento,
+                        largura: modelo.largura,
+                        altura: modelo.altura,
+                        volumeTotal: modelo.comprimento * modelo.largura * modelo.altura,
+                        volumeUsado: 0
+                    };
+
+                    tentarEncaixar(produto, novaCaixa);
+                    caixasAbertas.push(novaCaixa);
+                    break;
+                }
+            }
+        }
+    });
+
+    // 🔹 Exibir resultado
+    let html = "";
+    let volumeMercadorias = 0;
+    let volumeTotalCaixas = 0;
+
+    caixasAbertas.forEach(c => {
+
+        const percentual =
+            ((c.volumeUsado / c.volumeTotal) * 100).toFixed(2);
+
+        html += `
+        <div style="margin-bottom:15px;">
+            <strong>📦 Caixa ${c.nome}</strong><br>
+
+            <div style="background:#ddd;height:20px;border-radius:5px;">
+                <div style="
+                    width:${percentual}%;
+                    background:#28a745;
+                    height:20px;
+                    border-radius:5px;">
+                </div>
+            </div>
+
+            Ocupação: ${percentual}%<br>
+            Volume usado: ${(c.volumeUsado / 1000000).toFixed(6)} m³<br>
+            Volume total: ${(c.volumeTotal / 1000000).toFixed(6)} m³<br>
+        </div>
+        `;
+
+        volumeMercadorias += c.volumeUsado;
+        volumeTotalCaixas += c.volumeTotal;
+    });
+
+    const aproveitamentoFinal =
+        ((volumeMercadorias / volumeTotalCaixas) * 100).toFixed(2);
+
+    html += `
+        <hr>
+        <strong>Volume total mercadorias:</strong> ${(volumeMercadorias/1000000).toFixed(6)} m³<br>
+        <strong>Volume total caixas:</strong> ${(volumeTotalCaixas/1000000).toFixed(6)} m³<br>
+        <strong>Aproveitamento geral:</strong> ${aproveitamentoFinal}%
+    `;
+
+    document.getElementById("resultado").innerHTML = html;
+}
+
+// 🔹 Verifica se produto cabe na caixa modelo
+function produtoCabe(produto, caixa) {
+
+    const rotacoes = [
+        [produto.comprimento, produto.largura, produto.altura],
+        [produto.comprimento, produto.altura, produto.largura],
+        [produto.largura, produto.comprimento, produto.altura],
+        [produto.largura, produto.altura, produto.comprimento],
+        [produto.altura, produto.comprimento, produto.largura],
+        [produto.altura, produto.largura, produto.comprimento],
+    ];
+
+    return rotacoes.some(r =>
+        r[0] <= caixa.comprimento &&
+        r[1] <= caixa.largura &&
+        r[2] <= caixa.altura
+    );
+}
+
+// 🔹 Encaixe simplificado por volume disponível
+function tentarEncaixar(produto, caixa) {
+
+    const volumeProduto =
+        produto.comprimento *
+        produto.largura *
+        produto.altura;
+
+    if (caixa.volumeUsado + volumeProduto <= caixa.volumeTotal) {
+        caixa.volumeUsado += volumeProduto;
+        return true;
+    }
+
+    return false;
+}
+</script>
+
+</body>
+</html>

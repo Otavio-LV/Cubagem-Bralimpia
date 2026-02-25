@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Sistema de Cubagem - Multi Produto</title>
+<style>
+body {
+    font-family: Arial;
+    background: #f4f6f8;
+    padding: 30px;
+}
+
+.container {
+    max-width: 750px;
+    margin: auto;
+    background: white;
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0,0,0,0.1);
+}
+
+h2 {
+    text-align: center;
+}
+
+.produto-linha {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+select, input {
+    padding: 8px;
+    font-size: 14px;
+}
+
+button {
+    padding: 10px;
+    font-size: 15px;
+    cursor: pointer;
+    border: none;
+    border-radius: 5px;
+}
+
+.add-btn {
+    background: #28a745;
+    color: white;
+}
+
+.calc-btn {
+    background: #007bff;
+    color: white;
+    width: 100%;
+    margin-top: 15px;
+}
+
+.resultado {
+    margin-top: 20px;
+    background: #e9f5ff;
+    padding: 15px;
+    border-radius: 8px;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+<h2>Sistema de Cubagem - Multi Produto</h2>
+
+<div id="listaProdutos"></div>
+
+<button class="add-btn" onclick="adicionarProduto()">+ Adicionar Produto</button>
+
+<button class="calc-btn" onclick="calcular()">Calcular</button>
+
+<div class="resultado" id="resultado"></div>
+</div>
+
+<script>
+
+// 🔹 PRODUTOS (cm)
+const produtos = {
+    "Painel 100x2x2": { comprimento: 100, largura: 2, altura: 2 },
+    "Barra 80x5x5": { comprimento: 80, largura: 5, altura: 5 },
+    "Placa 60x40x3": { comprimento: 60, largura: 40, altura: 3 }
+};
+
+// 🔹 CAIXAS (cm)
+const caixas = [
+    { nome: "Pequena", comprimento: 60, largura: 30, altura: 30 },
+    { nome: "Média", comprimento: 110, largura: 40, altura: 40 },
+    { nome: "Grande", comprimento: 110, largura: 60, altura: 60 }
+];
+
+function adicionarProduto() {
+    const div = document.createElement("div");
+    div.className = "produto-linha";
+
+    const select = document.createElement("select");
+    for (let nome in produtos) {
+        let option = document.createElement("option");
+        option.value = nome;
+        option.textContent = nome;
+        select.appendChild(option);
+    }
+
+    const input = document.createElement("input");
+    input.type = "number";
+    input.min = "1";
+    input.value = "1";
+    input.style.width = "80px";
+
+    div.appendChild(select);
+    div.appendChild(input);
+
+    document.getElementById("listaProdutos").appendChild(div);
+}
+
+// 🔹 Função principal
+function calcular() {
+
+    const linhas = document.querySelectorAll(".produto-linha");
+
+    if (linhas.length === 0) {
+        alert("Adicione pelo menos um produto.");
+        return;
+    }
+
+    let volumeTotalMercadoriasM3 = 0;
+    let volumeTotalCm3 = 0;
+
+    linhas.forEach(linha => {
+        const nome = linha.children[0].value;
+        const quantidade = parseInt(linha.children[1].value);
+
+        const produto = produtos[nome];
+
+        const volumeUnitario =
+            produto.comprimento *
+            produto.largura *
+            produto.altura;
+
+        volumeTotalCm3 += volumeUnitario * quantidade;
+    });
+
+    volumeTotalMercadoriasM3 = volumeTotalCm3 / 1000000;
+
+    let melhorOpcao = null;
+
+    for (let caixa of caixas) {
+
+        const volumeCaixaCm3 =
+            caixa.comprimento *
+            caixa.largura *
+            caixa.altura;
+
+        const caixasNecessarias =
+            Math.ceil(volumeTotalCm3 / volumeCaixaCm3);
+
+        if (!melhorOpcao ||
+            caixasNecessarias < melhorOpcao.caixasNecessarias) {
+            melhorOpcao = {
+                caixa,
+                caixasNecessarias,
+                volumeCaixaCm3
+            };
+        }
+    }
+
+    const volumeTotalCaixasM3 =
+        (melhorOpcao.volumeCaixaCm3 *
+         melhorOpcao.caixasNecessarias) / 1000000;
+
+    document.getElementById("resultado").innerHTML = `
+        <strong>Caixa escolhida:</strong> ${melhorOpcao.caixa.nome}<br>
+        <strong>Caixas necessárias:</strong> ${melhorOpcao.caixasNecessarias}<br><br>
+        <strong>Volume total mercadorias:</strong> ${volumeTotalMercadoriasM3.toFixed(6)} m³<br>
+        <strong>Volume total caixas:</strong> ${volumeTotalCaixasM3.toFixed(6)} m³
+    `;
+}
+
+// 🔹 Já começa com um produto
+adicionarProduto();
+
+</script>
+
+</body>
+</html>

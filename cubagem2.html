@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Simulador Profissional de Cubagem</title>
+
+<style>
+body{
+    font-family: Arial;
+    background:#f2f2f2;
+    padding:20px;
+}
+
+.container{
+    max-width:700px;
+    margin:auto;
+    background:white;
+    padding:20px;
+    border-radius:10px;
+}
+
+input{
+    width:100%;
+    padding:8px;
+    margin:5px 0;
+}
+
+button{
+    width:100%;
+    padding:10px;
+    margin-top:10px;
+    background:#011936;
+    color:white;
+    border:none;
+    border-radius:5px;
+}
+
+table{
+    width:100%;
+    margin-top:15px;
+    border-collapse:collapse;
+}
+
+th,td{
+    border:1px solid #ccc;
+    padding:6px;
+    text-align:center;
+}
+
+.resultadoFinal{
+    margin-top:20px;
+    background:#e9f5ff;
+    padding:15px;
+    border-radius:8px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>Simulador Profissional de Cubagem</h2>
+
+<h4>Adicionar Produto à Lista</h4>
+
+<input type="number" id="compProd" placeholder="Comprimento (cm)">
+<input type="number" id="largProd" placeholder="Largura (cm)">
+<input type="number" id="altProd" placeholder="Altura (cm)">
+<input type="number" id="qtdProd" placeholder="Quantidade">
+
+<button onclick="adicionarProduto()">Adicionar Produto</button>
+
+<h4>Lista de Produtos</h4>
+
+<table id="listaProdutos">
+<thead>
+<tr>
+<th>Comp</th>
+<th>Larg</th>
+<th>Alt</th>
+<th>Qtd</th>
+<th>Volume Total (cm³)</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+
+<button onclick="calcularCarga()">Calcular Carga</button>
+
+<div class="resultadoFinal" id="resultadoFinal"></div>
+
+</div>
+
+<script>
+    
+    const produtos = {
+  "Painel 100x2x2": { comprimento: 100, largura: 2, altura: 2 },
+  "Barra 80x5x5": { comprimento: 80, largura: 5, altura: 5 },
+  "Placa 60x40x3": { comprimento: 60, largura: 40, altura: 3 }
+};
+// 📦 Todas as medidas estão em CENTÍMETROS (cm)
+let caixas = [
+    {nome:"Média (110x30x30 cm)", comp:110, larg:30, alt:30},
+    {nome:"Pequena (90x40x40 cm)", comp:90, larg:40, alt:40},
+    {nome:"Gigante (110x50x50 cm)", comp:110, larg:50, alt:50}
+];
+
+let listaProdutos = [];
+
+function adicionarProduto(){
+
+    let comp = parseFloat(document.getElementById("compProd").value);
+    let larg = parseFloat(document.getElementById("largProd").value);
+    let alt = parseFloat(document.getElementById("altProd").value);
+    let qtd = parseFloat(document.getElementById("qtdProd").value);
+
+    if(!comp || !larg || !alt || !qtd){
+        alert("Preencha todos os campos");
+        return;
+    }
+
+    let volumeUnitario = comp * larg * alt;
+    let volumeTotal = volumeUnitario * qtd;
+
+    listaProdutos.push({comp, larg, alt, qtd, volumeTotal});
+
+    atualizarTabela();
+}
+
+function atualizarTabela(){
+
+    let tbody = document.querySelector("#listaProdutos tbody");
+    tbody.innerHTML = "";
+
+    listaProdutos.forEach(produto=>{
+        let row = document.createElement("tr");
+        row.innerHTML = `
+            <td>${produto.comp}</td>
+            <td>${produto.larg}</td>
+            <td>${produto.alt}</td>
+            <td>${produto.qtd}</td>
+            <td>${produto.volumeTotal}</td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function calcularCarga(){
+
+    let resultadoTexto = `
+        <h3>Resumo da Carga</h3>
+        <p><strong>Medidas utilizadas:</strong> Todas em centímetros (cm)</p>
+    `;
+
+    caixas.forEach(caixa=>{
+
+        let podeUsarCaixa = true;
+        let totalUnidades = 0;
+
+        // Primeiro verificar se TODOS produtos cabem fisicamente
+        listaProdutos.forEach(produto=>{
+            if(
+                produto.comp > caixa.comp ||
+                produto.larg > caixa.larg ||
+                produto.alt > caixa.alt
+            ){
+                podeUsarCaixa = false;
+            }
+
+            totalUnidades += produto.qtd;
+        });
+
+        if(!podeUsarCaixa){
+            resultadoTexto += `
+                <p>
+                <strong>Caixa ${caixa.nome}</strong><br>
+                ❌ Algum produto não cabe fisicamente nesta caixa.
+                </p>
+            `;
+        } else {
+
+            // Considerando apenas o primeiro produto como padrão dimensional
+            let p = listaProdutos[0];
+
+            let capacidadeCaixa =
+                Math.floor(caixa.comp/p.comp) *
+                Math.floor(caixa.larg/p.larg) *
+                Math.floor(caixa.alt/p.alt);
+
+            let caixasNecessarias = Math.ceil(totalUnidades / capacidadeCaixa);
+
+            let volumeCaixa = caixa.comp * caixa.larg * caixa.alt;
+            let volumeTotalCaixas = volumeCaixa * caixasNecessarias;
+            let volumeTotalCaixasM3 = volumeTotalCaixas / 1000000;
+
+            resultadoTexto += `
+                <p>
+                <strong>Caixa ${caixa.nome}</strong><br>
+                Capacidade por caixa: ${capacidadeCaixa} unidades<br>
+                Total de unidades: ${totalUnidades}<br>
+                Caixas necessárias: ${caixasNecessarias}<br>
+                Volume total das caixas: ${volumeTotalCaixasM3.toFixed(3)} m³
+                </p>
+            `;
+        }
+
+    });
+
+    document.getElementById("resultadoFinal").innerHTML = resultadoTexto;
+}
+
+</script>
+
+</body>
+</html>
