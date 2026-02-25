@@ -2,36 +2,37 @@
 <html lang="pt-br">
 <head>
 <meta charset="UTF-8">
-<title>Sistema de Cubagem Inteligente</title>
+<title>3D Bin Packing Completo</title>
 <style>
-body { font-family: Arial; background: #f4f6f8; padding: 30px; }
-.container { max-width: 900px; margin: auto; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 0 15px rgba(0,0,0,0.1); }
-h2 { text-align: center; }
-.produto-linha { display: flex; gap: 10px; margin-bottom: 10px; }
-select, input { padding: 8px; font-size: 14px; }
-button { padding: 10px; font-size: 15px; cursor: pointer; border: none; border-radius: 5px; }
-.add-btn { background: #28a745; color: white; }
-.calc-btn { background: #007bff; color: white; width: 100%; margin-top: 15px; }
-.resultado { margin-top: 20px; }
+body { font-family: Arial; background:#f4f6f8; padding:20px;}
+.container { max-width:900px; margin:auto; background:white; padding:25px; border-radius:10px; box-shadow:0 0 15px rgba(0,0,0,0.1);}
+h2 { text-align:center; }
+.produto-linha { display:flex; gap:10px; margin-bottom:10px; }
+select,input { padding:8px; font-size:14px; }
+button { padding:10px; font-size:15px; cursor:pointer; border:none; border-radius:5px; }
+.add-btn { background:#28a745; color:white; }
+.calc-btn { background:#007bff; color:white; width:100%; margin-top:15px; }
+.resultado { margin-top:20px; }
 </style>
 </head>
 <body>
 <div class="container">
-<h2>Sistema de Cubagem Inteligente</h2>
+<h2>3D Bin Packing Completo (Backtracking)</h2>
 <div id="listaProdutos"></div>
 <button class="add-btn" onclick="adicionarProduto()">+ Adicionar Produto</button>
 <button class="calc-btn" onclick="calcular()">Calcular</button>
 <div class="resultado" id="resultado"></div>
 </div>
+
 <script>
-// 🔹 PRODUTOS (cm)
+// Produtos de exemplo
 const produtos = {
-    "Painel 100x2x2": { comprimento: 100, largura: 2, altura: 2 },
-    "Barra 80x5x5": { comprimento: 80, largura: 5, altura: 5 },
-    "Placa 60x40x3": { comprimento: 60, largura: 40, altura: 3 }
+    "Painel 100x2x2": { comprimento:100, largura:2, altura:2 },
+    "Barra 80x5x5": { comprimento:80, largura:5, altura:5 },
+    "Placa 60x40x3": { comprimento:60, largura:40, altura:3 }
 };
 
-// 🔹 CAIXAS (cm)
+// Tipos de caixas
 const caixas = [
 
   { nome: "BALDE APLC 30L", comprimento: 0.65, largura: 0.36, altura: 0.30, quantidade: 1 },
@@ -202,9 +203,11 @@ const caixas = [
 
 ];
 
+// Adicionar linha de produto
 function adicionarProduto() {
     const div = document.createElement("div");
     div.className = "produto-linha";
+
     const select = document.createElement("select");
     for (let nome in produtos) {
         let option = document.createElement("option");
@@ -212,113 +215,115 @@ function adicionarProduto() {
         option.textContent = nome;
         select.appendChild(option);
     }
+
     const input = document.createElement("input");
-    input.type = "number";
-    input.min = "1";
-    input.value = "1";
-    input.style.width = "80px";
+    input.type="number"; input.min="1"; input.value="1"; input.style.width="80px";
+
     div.appendChild(select);
     div.appendChild(input);
     document.getElementById("listaProdutos").appendChild(div);
 }
 
-// 🔹 ROTACIONA PRODUTOS
+// Gerar rotações 3D
 function gerarRotacoes(produto) {
+    const { comprimento:L, largura:W, altura:H } = produto;
     return [
-        [produto.comprimento, produto.largura, produto.altura],
-        [produto.comprimento, produto.altura, produto.largura],
-        [produto.largura, produto.comprimento, produto.altura],
-        [produto.largura, produto.altura, produto.comprimento],
-        [produto.altura, produto.comprimento, produto.largura],
-        [produto.altura, produto.largura, produto.comprimento]
+        [L,W,H],[L,H,W],
+        [W,L,H],[W,H,L],
+        [H,L,W],[H,W,L]
     ];
 }
 
-// 🔹 ENCAIXE INTELIGENTE
-function produtoCabeEmCaixa(produto, caixa) {
-    return gerarRotacoes(produto).some(r => r[0] <= caixa.comprimento && r[1] <= caixa.largura && r[2] <= caixa.altura);
+// Checar se produto cabe na caixa (qualquer rotação)
+function produtoCabe(produto, caixa) {
+    return gerarRotacoes(produto).some(([l,w,h]) => l<=caixa.comprimento && w<=caixa.largura && h<=caixa.altura);
 }
 
-function tentarEncaixar(produto, caixa) {
-    const volumeProduto = produto.comprimento * produto.largura * produto.altura;
-    if (!caixa.itens) caixa.itens = [];
-    if (!caixa.volumeUsado) caixa.volumeUsado = 0;
+// Função de cópia profunda de objetos
+function deepCopy(obj){ return JSON.parse(JSON.stringify(obj)); }
 
-    // Simples verificação por volume (estimativa)
-    const volumeCaixa = caixa.comprimento * caixa.largura * caixa.altura;
-    if (caixa.volumeUsado + volumeProduto <= volumeCaixa) {
-        caixa.itens.push(produto);
-        caixa.volumeUsado += volumeProduto;
-        return true;
+// Função de backtracking para achar melhor solução
+function backtrack(produtosLista, caixasDisponiveis, index=0, caixasAbertas=[], melhorSol=null){
+    if(index>=produtosLista.length){
+        // Solução completa
+        let volumeUsadoTotal = caixasAbertas.reduce((acc,c)=>acc+(c.volumeUsado||0),0);
+        let volumeTotal = caixasAbertas.reduce((acc,c)=>acc+c.volumeTotal,0);
+        let aproveitamento = volumeUsadoTotal/volumeTotal;
+        if(!melhorSol || aproveitamento>melhorSol.aproveitamento){
+            melhorSol = { caixas: deepCopy(caixasAbertas), aproveitamento };
+        }
+        return melhorSol;
     }
-    return false;
+
+    let produto = produtosLista[index];
+    let volumeProduto = produto.comprimento*produto.largura*produto.altura;
+
+    // Tenta encaixar em cada caixa aberta
+    for(let i=0;i<caixasAbertas.length;i++){
+        let caixa = caixasAbertas[i];
+        if(produtoCabe(produto, caixa) && (caixa.volumeUsado+volumeProduto)<=caixa.volumeTotal){
+            caixa.volumeUsado += volumeProduto;
+            caixa.produtos.push(produto.nome);
+            melhorSol = backtrack(produtosLista, caixasDisponiveis, index+1, caixasAbertas, melhorSol);
+            // backtrack
+            caixa.volumeUsado -= volumeProduto;
+            caixa.produtos.pop();
+        }
+    }
+
+    // Tenta abrir nova caixa
+    for(let modelo of caixasDisponiveis){
+        if(produtoCabe(produto, modelo)){
+            let novaCaixa = { ...modelo, volumeTotal:modelo.comprimento*modelo.largura*modelo.altura, volumeUsado:volumeProduto, produtos:[produto.nome] };
+            caixasAbertas.push(novaCaixa);
+            melhorSol = backtrack(produtosLista, caixasDisponiveis, index+1, caixasAbertas, melhorSol);
+            caixasAbertas.pop();
+        }
+    }
+
+    return melhorSol;
 }
 
-function calcular() {
+// Função principal
+function calcular(){
     const linhas = document.querySelectorAll(".produto-linha");
-    if (linhas.length === 0) { alert("Adicione pelo menos um produto."); return; }
+    if(linhas.length===0){ alert("Adicione pelo menos um produto."); return; }
 
-    let unidades = [];
-    linhas.forEach(linha => {
+    let listaUnidades=[];
+    linhas.forEach(linha=>{
         const nome = linha.children[0].value;
         const quantidade = parseInt(linha.children[1].value);
-        const p = produtos[nome];
-        for (let i = 0; i < quantidade; i++) {
-            unidades.push({ ...p, nome });
+        for(let i=0;i<quantidade;i++){
+            listaUnidades.push({ nome, ...produtos[nome] });
         }
     });
 
-    // Ordena decrescente por volume
-    unidades.sort((a, b) => (b.comprimento*b.largura*b.altura) - (a.comprimento*a.largura*a.altura));
+    // Ordenar por volume decrescente
+    listaUnidades.sort((a,b)=>(b.comprimento*b.largura*b.altura)-(a.comprimento*a.largura*a.altura));
 
-    let caixasAbertas = [];
+    document.getElementById("resultado").innerHTML = "<p>Calculando, aguarde...</p>";
 
-    unidades.forEach(prod => {
-        let encaixado = false;
-        for (let c of caixasAbertas) {
-            if (tentarEncaixar(prod, c)) { encaixado = true; break; }
-        }
-        if (!encaixado) {
-            // Escolhe a caixa que maximize aproveitamento
-            let melhor = null, melhorAproveitamento = 0;
-            for (let modelo of caixas) {
-                if (produtoCabeEmCaixa(prod, modelo)) {
-                    const volProd = prod.comprimento*prod.largura*prod.altura;
-                    const volCaixa = modelo.comprimento*modelo.largura*modelo.altura;
-                    const aproveitamento = volProd/volCaixa;
-                    if (aproveitamento > melhorAproveitamento) { melhorAproveitamento = aproveitamento; melhor = modelo; }
-                }
-            }
-            if (melhor) {
-                let novaCaixa = { ...melhor, volumeUsado:0, itens:[] };
-                tentarEncaixar(prod, novaCaixa);
-                caixasAbertas.push(novaCaixa);
-            }
-        }
-    });
+    // Executar backtracking pesado
+    setTimeout(()=>{
+        let melhor = backtrack(listaUnidades, caixas);
+        if(!melhor){ document.getElementById("resultado").innerHTML="Nenhuma solução encontrada"; return; }
 
-    // 🔹 RESUMO
-    let html = `<div style='background:#111;color:white;padding:15px;border-radius:10px;margin-bottom:20px;'><h3 style='margin-top:0;'>📊 Resumo da Simulação</h3>`;
-    let volMerc = 0, volCaixas = 0;
-    let resumoTipos = {};
-    caixasAbertas.forEach(c => {
-        volMerc += c.volumeUsado;
-        const volTotal = c.comprimento*c.largura*c.altura;
-        volCaixas += volTotal;
-        resumoTipos[c.nome] = (resumoTipos[c.nome]||0)+1;
-    });
+        let html = `<h3>📊 Melhor Solução Encontrada</h3>
+        <strong>Total de caixas:</strong> ${melhor.caixas.length}<br>`;
+        melhor.caixas.forEach((c,i)=>{
+            const perc = ((c.volumeUsado/c.volumeTotal)*100).toFixed(2);
+            html+=`<div style="margin-bottom:10px;">
+            <strong>📦 ${c.nome} #${i+1}</strong><br>
+            Ocupação: ${perc}%<br>
+            Volume usado: ${(c.volumeUsado/1000000).toFixed(6)} m³<br>
+            Volume total: ${(c.volumeTotal/1000000).toFixed(6)} m³<br>
+            Produtos: ${c.produtos.join(", ")}
+            </div>`;
+        });
 
-    html += `<strong>Total de caixas:</strong> ${caixasAbertas.length}<br>`;
-    for (let tipo in resumoTipos) html += `<strong>${tipo}:</strong> ${resumoTipos[tipo]}<br>`;
-    html += `<br><strong>Volume mercadorias:</strong> ${(volMerc/1000000).toFixed(6)} m³<br><strong>Volume caixas:</strong> ${(volCaixas/1000000).toFixed(6)} m³<br><strong>Aproveitamento geral:</strong> ${((volMerc/volCaixas)*100).toFixed(2)}%`;
-    html += `</div>`;
-
-    caixasAbertas.forEach((c,i)=>{
-        const perc = ((c.volumeUsado/(c.comprimento*c.largura*c.altura))*100).toFixed(2);
-        html += `<div style='margin-bottom:15px;'><strong>📦 Caixa ${c.nome} #${i+1}</strong><br><div style='background:#ddd;height:20px;border-radius:5px;'><div style='width:${perc}%;background:#28a745;height:20px;border-radius:5px;'></div></div>Ocupação: ${perc}%<br>Volume usado: ${(c.volumeUsado/1000000).toFixed(6)} m³<br>Volume total: ${(c.comprimento*c.largura*c.altura/1000000).toFixed(6)} m³</div>`;
-    });
-
-    document.getElementById("resultado").innerHTML = html;
+        html+=`<strong>Aproveitamento geral:</strong> ${(melhor.aproveitamento*100).toFixed(2)}%`;
+        document.getElementById("resultado").innerHTML = html;
+    },100);
 }
 
 adicionarProduto();

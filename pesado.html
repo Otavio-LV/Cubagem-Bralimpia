@@ -2,10 +2,10 @@
 <html lang="pt-br">
 <head>
 <meta charset="UTF-8">
-<title>Sistema de Cubagem Inteligente</title>
+<title>3D Bin Packing Profissional</title>
 <style>
 body { font-family: Arial; background: #f4f6f8; padding: 30px; }
-.container { max-width: 900px; margin: auto; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 0 15px rgba(0,0,0,0.1); }
+.container { max-width: 900px; margin: auto; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 0 15px rgba(0,0,0,0.1);}
 h2 { text-align: center; }
 .produto-linha { display: flex; gap: 10px; margin-bottom: 10px; }
 select, input { padding: 8px; font-size: 14px; }
@@ -16,13 +16,18 @@ button { padding: 10px; font-size: 15px; cursor: pointer; border: none; border-r
 </style>
 </head>
 <body>
+
 <div class="container">
-<h2>Sistema de Cubagem Inteligente</h2>
+<h2>3D Bin Packing Profissional</h2>
+
 <div id="listaProdutos"></div>
+
 <button class="add-btn" onclick="adicionarProduto()">+ Adicionar Produto</button>
 <button class="calc-btn" onclick="calcular()">Calcular</button>
+
 <div class="resultado" id="resultado"></div>
 </div>
+
 <script>
 // 🔹 PRODUTOS (cm)
 const produtos = {
@@ -202,9 +207,11 @@ const caixas = [
 
 ];
 
+// 🔹 ADICIONAR LINHA DE PRODUTO
 function adicionarProduto() {
     const div = document.createElement("div");
     div.className = "produto-linha";
+
     const select = document.createElement("select");
     for (let nome in produtos) {
         let option = document.createElement("option");
@@ -212,110 +219,137 @@ function adicionarProduto() {
         option.textContent = nome;
         select.appendChild(option);
     }
+
     const input = document.createElement("input");
     input.type = "number";
     input.min = "1";
     input.value = "1";
     input.style.width = "80px";
+
     div.appendChild(select);
     div.appendChild(input);
     document.getElementById("listaProdutos").appendChild(div);
 }
 
-// 🔹 ROTACIONA PRODUTOS
+// 🔹 GERAR ROTAÇÕES 3D
 function gerarRotacoes(produto) {
+    const { comprimento: L, largura: W, altura: H } = produto;
     return [
-        [produto.comprimento, produto.largura, produto.altura],
-        [produto.comprimento, produto.altura, produto.largura],
-        [produto.largura, produto.comprimento, produto.altura],
-        [produto.largura, produto.altura, produto.comprimento],
-        [produto.altura, produto.comprimento, produto.largura],
-        [produto.altura, produto.largura, produto.comprimento]
+        [L, W, H], [L, H, W],
+        [W, L, H], [W, H, L],
+        [H, L, W], [H, W, L]
     ];
 }
 
-// 🔹 ENCAIXE INTELIGENTE
-function produtoCabeEmCaixa(produto, caixa) {
-    return gerarRotacoes(produto).some(r => r[0] <= caixa.comprimento && r[1] <= caixa.largura && r[2] <= caixa.altura);
+// 🔹 CHECAR SE PRODUTO CABE NA CAIXA (ROTACIONÁVEL)
+function produtoCabeNaCaixa(produto, caixa) {
+    return gerarRotacoes(produto).some(([l, w, h]) =>
+        l <= caixa.comprimento && w <= caixa.largura && h <= caixa.altura
+    );
 }
 
+// 🔹 ENCAIXE SIMPLES POR VOLUME
 function tentarEncaixar(produto, caixa) {
     const volumeProduto = produto.comprimento * produto.largura * produto.altura;
-    if (!caixa.itens) caixa.itens = [];
-    if (!caixa.volumeUsado) caixa.volumeUsado = 0;
-
-    // Simples verificação por volume (estimativa)
-    const volumeCaixa = caixa.comprimento * caixa.largura * caixa.altura;
-    if (caixa.volumeUsado + volumeProduto <= volumeCaixa) {
-        caixa.itens.push(produto);
+    if (!caixa.volumeTotal) {
+        caixa.volumeTotal = caixa.comprimento * caixa.largura * caixa.altura;
+        caixa.volumeUsado = 0;
+        caixa.produtos = [];
+    }
+    if (caixa.volumeUsado + volumeProduto <= caixa.volumeTotal) {
         caixa.volumeUsado += volumeProduto;
+        caixa.produtos.push(produto.nome);
         return true;
     }
     return false;
 }
 
+// 🔹 CALCULAR MELHOR ENCAIXE
 function calcular() {
     const linhas = document.querySelectorAll(".produto-linha");
     if (linhas.length === 0) { alert("Adicione pelo menos um produto."); return; }
 
-    let unidades = [];
+    // 🔹 Criar lista de unidades
+    let listaUnidades = [];
     linhas.forEach(linha => {
         const nome = linha.children[0].value;
         const quantidade = parseInt(linha.children[1].value);
-        const p = produtos[nome];
+        const produto = produtos[nome];
         for (let i = 0; i < quantidade; i++) {
-            unidades.push({ ...p, nome });
+            listaUnidades.push({ nome, ...produto });
         }
     });
 
-    // Ordena decrescente por volume
-    unidades.sort((a, b) => (b.comprimento*b.largura*b.altura) - (a.comprimento*a.largura*a.altura));
+    // 🔹 Ordenar por volume decrescente
+    listaUnidades.sort((a,b) => (b.comprimento*b.largura*b.altura) - (a.comprimento*a.largura*a.altura));
 
     let caixasAbertas = [];
 
-    unidades.forEach(prod => {
+    // 🔹 Algoritmo de encaixe simples + combinação
+    for (let produto of listaUnidades) {
         let encaixado = false;
+
+        // Tenta encaixar em caixas abertas
         for (let c of caixasAbertas) {
-            if (tentarEncaixar(prod, c)) { encaixado = true; break; }
+            if (tentarEncaixar(produto, c)) { encaixado = true; break; }
         }
+
+        // Se não encaixou, abre nova caixa tentando a melhor opção
         if (!encaixado) {
-            // Escolhe a caixa que maximize aproveitamento
-            let melhor = null, melhorAproveitamento = 0;
+            let melhorCaixa = null;
+            let melhorAproveitamento = 0;
+
             for (let modelo of caixas) {
-                if (produtoCabeEmCaixa(prod, modelo)) {
-                    const volProd = prod.comprimento*prod.largura*prod.altura;
-                    const volCaixa = modelo.comprimento*modelo.largura*modelo.altura;
-                    const aproveitamento = volProd/volCaixa;
-                    if (aproveitamento > melhorAproveitamento) { melhorAproveitamento = aproveitamento; melhor = modelo; }
+                if (produtoCabeNaCaixa(produto, modelo)) {
+                    let volProduto = produto.comprimento * produto.largura * produto.altura;
+                    let volCaixa = modelo.comprimento * modelo.largura * modelo.altura;
+                    let aproveitamento = volProduto / volCaixa;
+                    if (aproveitamento > melhorAproveitamento) {
+                        melhorAproveitamento = aproveitamento;
+                        melhorCaixa = modelo;
+                    }
                 }
             }
-            if (melhor) {
-                let novaCaixa = { ...melhor, volumeUsado:0, itens:[] };
-                tentarEncaixar(prod, novaCaixa);
+
+            if (melhorCaixa) {
+                let novaCaixa = { ...melhorCaixa, volumeTotal: melhorCaixa.comprimento*melhorCaixa.largura*melhorCaixa.altura, volumeUsado:0, produtos:[] };
+                tentarEncaixar(produto, novaCaixa);
                 caixasAbertas.push(novaCaixa);
             }
         }
-    });
+    }
 
-    // 🔹 RESUMO
-    let html = `<div style='background:#111;color:white;padding:15px;border-radius:10px;margin-bottom:20px;'><h3 style='margin-top:0;'>📊 Resumo da Simulação</h3>`;
-    let volMerc = 0, volCaixas = 0;
+    // 🔹 DASHBOARD
     let resumoTipos = {};
+    let volumeMercadorias = 0;
+    let volumeTotalCaixas = 0;
+
     caixasAbertas.forEach(c => {
-        volMerc += c.volumeUsado;
-        const volTotal = c.comprimento*c.largura*c.altura;
-        volCaixas += volTotal;
-        resumoTipos[c.nome] = (resumoTipos[c.nome]||0)+1;
+        resumoTipos[c.nome] = (resumoTipos[c.nome] || 0) + 1;
+        volumeMercadorias += c.volumeUsado;
+        volumeTotalCaixas += c.volumeTotal;
     });
 
-    html += `<strong>Total de caixas:</strong> ${caixasAbertas.length}<br>`;
+    let html = `<div style="background:#111;color:white;padding:15px;border-radius:10px;margin-bottom:20px;">
+    <h3 style="margin-top:0;">📊 Resumo da Simulação</h3>
+    <strong>Total de caixas:</strong> ${caixasAbertas.length}<br>`;
     for (let tipo in resumoTipos) html += `<strong>${tipo}:</strong> ${resumoTipos[tipo]}<br>`;
-    html += `<br><strong>Volume mercadorias:</strong> ${(volMerc/1000000).toFixed(6)} m³<br><strong>Volume caixas:</strong> ${(volCaixas/1000000).toFixed(6)} m³<br><strong>Aproveitamento geral:</strong> ${((volMerc/volCaixas)*100).toFixed(2)}%`;
-    html += `</div>`;
+    html += `<br><strong>Volume mercadorias:</strong> ${(volumeMercadorias/1000000).toFixed(6)} m³<br>
+             <strong>Volume caixas:</strong> ${(volumeTotalCaixas/1000000).toFixed(6)} m³<br>
+             <strong>Aproveitamento geral:</strong> ${((volumeMercadorias/volumeTotalCaixas)*100).toFixed(2)}%</div>`;
 
     caixasAbertas.forEach((c,i)=>{
-        const perc = ((c.volumeUsado/(c.comprimento*c.largura*c.altura))*100).toFixed(2);
-        html += `<div style='margin-bottom:15px;'><strong>📦 Caixa ${c.nome} #${i+1}</strong><br><div style='background:#ddd;height:20px;border-radius:5px;'><div style='width:${perc}%;background:#28a745;height:20px;border-radius:5px;'></div></div>Ocupação: ${perc}%<br>Volume usado: ${(c.volumeUsado/1000000).toFixed(6)} m³<br>Volume total: ${(c.comprimento*c.largura*c.altura/1000000).toFixed(6)} m³</div>`;
+        const percentual = ((c.volumeUsado/c.volumeTotal)*100).toFixed(2);
+        html += `<div style="margin-bottom:15px;">
+        <strong>📦 Caixa ${c.nome} #${i+1}</strong><br>
+        <div style="background:#ddd;height:20px;border-radius:5px;">
+        <div style="width:${percentual}%;background:#28a745;height:20px;border-radius:5px;"></div>
+        </div>
+        Ocupação: ${percentual}%<br>
+        Volume usado: ${(c.volumeUsado/1000000).toFixed(6)} m³<br>
+        Volume total: ${(c.volumeTotal/1000000).toFixed(6)} m³<br>
+        Produtos: ${c.produtos.join(", ")}
+        </div>`;
     });
 
     document.getElementById("resultado").innerHTML = html;
